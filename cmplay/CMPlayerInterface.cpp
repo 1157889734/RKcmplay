@@ -73,6 +73,7 @@ typedef struct _T_CMP_PLAYER_INFO
 	CMP_VDEC_TYPE   eDecType;   //软、硬解码或者鱼眼矫正
     T_WND_INFO      ptWndInfo;
     int             iDisplayFlag;
+    void            **pRenderHandle;
 } T_CMP_PLAYER_INFO, *PT_CMP_PLAYER_INFO;
 
 static int				   g_iCMPlayerInitFlag = 0;
@@ -550,6 +551,7 @@ void* MonitorPlayThread(void *arg)
         ptCmpPlayer->iPlaySecs = (ptCmpPlayer->iPlayRange) * 1000;   //
     }
 
+    ptCmpPlayer->iStreamState = 0;
     SetPlayState(ptCmpPlayer, CMP_STATE_STOP);
 
      //�߳�ѭ�������˳����ñ�־Ϊ1��ʹCMP_CloseMedia�����ܾ��췵�أ���Ϊ�������RTSP_Logout��������ʱ���߳�һ��ʼ���������˳��Զ�������Դ����������Ҳ��������ڴ�й©
@@ -614,10 +616,13 @@ CMPPlayer_API CMPHandle CMP_Init(T_WND_INFO *pWndInfo, CMP_VDEC_TYPE eDecType)
     ptCmpPlayer->iDisplayFlag = 0;
 
     ptCmpPlayer->ptWndInfo = *pWndInfo;
-    if(pWndInfo->hWnd)
+    if(!pWndInfo->pRenderHandle && pWndInfo->hWnd)
     {
         ptCmpPlayer->ptWndInfo.pRenderHandle = SHM_AddRect((QWidget*)pWndInfo->hWnd);
+        pWndInfo->pRenderHandle = ptCmpPlayer->ptWndInfo.pRenderHandle;
+        ptCmpPlayer->pRenderHandle = &pWndInfo->pRenderHandle;
     }
+
 
     InitMessgeList(ptCmpPlayer);
 
@@ -637,6 +642,7 @@ CMPPlayer_API int CMP_UnInit(CMPHandle hPlay)
     {
         SHM_FreeRect(ptCmpPlayer->ptWndInfo.pRenderHandle);
         ptCmpPlayer->ptWndInfo.pRenderHandle = NULL;
+        *ptCmpPlayer->pRenderHandle = NULL;
     }
 
     InitMessgeList(ptCmpPlayer);
@@ -735,6 +741,7 @@ CMPPlayer_API int CMP_CloseMedia(CMPHandle hPlay)
     VDEC_DestroyVideoDecCh(ptCmpPlayer->VHandle);
     ptCmpPlayer->VHandle = NULL;
     SetPlayState(ptCmpPlayer, CMP_STATE_STOP);
+    ptCmpPlayer->iStreamState = 0;
     printf("CMP_CloseMedia\n");
 	return 0;
 }
@@ -939,6 +946,7 @@ CMPPlayer_API int CMP_SetPlayEnable(CMPHandle hPlay, int enable)
         }
         usleep(20000);
         SHM_DetchWnd(ptCmpPlayer->ptWndInfo.pRenderHandle);
+
     }
     ptCmpPlayer->iDisplayFlag = enable;
     return 1;
@@ -971,7 +979,7 @@ CMPPlayer_API int CMP_FillDisplayBk(CMPHandle hPlay, uint32_t rgb)
     {
         return -1;
     }
-    //SHM_FillRect(ptCmpPlayer->ptWndInfo.pRenderHandle, rgb);
+    SHM_FillRect(ptCmpPlayer->ptWndInfo.pRenderHandle, rgb);
     return 0;
 }
 

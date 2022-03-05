@@ -39,6 +39,7 @@ typedef struct  T_SHM_RECT_INFO
     struct wl_buffer* buffer;
     QWidget *pWidget;
     CMutexLock lock;
+    int index;
     T_SHM_RECT_INFO()
     {
         size = w = h = 0;
@@ -49,6 +50,7 @@ typedef struct  T_SHM_RECT_INFO
         iRenderThreadRun = 0;
         hRenderThread = 0;
         pWidget = NULL;
+        index = 0;
 
         memset(&rgasrc, 0, sizeof(rga_info_t));
         memset(&rgadst, 0, sizeof(rga_info_t));
@@ -302,6 +304,8 @@ int SHM_FillRect(SHM_HANDLE hShmHandle, uint32_t color)
     memset(pShmRectInfo->addr, 0x10, pShmRectInfo->w * pShmRectInfo->h);
     memset(pShmRectInfo->addr + pShmRectInfo->w * pShmRectInfo->h, 0x80, pShmRectInfo->w * pShmRectInfo->h * 0.5);
     wl_surface_attach(pShmRectInfo->window_handle, pShmRectInfo->buffer, 0, 0);
+    wl_surface_damage (pShmRectInfo->window_handle, 0, 0,
+        pShmRectInfo->w, pShmRectInfo->h);
     wl_surface_commit(pShmRectInfo->window_handle);
     //wl_display_flush(display_handle);
     pShmRectInfo->lock.Unlock();
@@ -406,6 +410,11 @@ int SHM_Display(SHM_HANDLE hPlaneHandle, MppFrame frame)
         printf("pShmRectInfo err \n");
         return -1;
     }
+    if(++pShmRectInfo->index < 4)
+    {
+        return -1;
+    }
+    pShmRectInfo->index = 0;
     int err = -1;
 	err = SHM_RkRgaBlit(frame, pShmRectInfo);
     if(err < 0)
@@ -426,17 +435,11 @@ int SHM_Display(SHM_HANDLE hPlaneHandle, MppFrame frame)
         return -1;
     }
     pShmRectInfo->lock.Lock();
-//    printf("*******pShmRectInfo->window_handle=%d------%d-----%d\n",pShmRectInfo->window_handle,pShmRectInfo->pWidget->isVisible(),__LINE__);
+    //printf("*******pShmRectInfo->window_handle=%d------%d-----%d\n",pShmRectInfo->window_handle,pShmRectInfo->pWidget->isVisible(),__LINE__);
     wl_surface_attach(pShmRectInfo->window_handle, pShmRectInfo->buffer, 0, 0);
-//    printf("******%s---%d\n",__FUNCTION__,__LINE__);
-
     wl_surface_damage (pShmRectInfo->window_handle, 0, 0,
         pShmRectInfo->w, pShmRectInfo->h);
-//    printf("******%s---%d\n",__FUNCTION__,__LINE__);
-
     wl_surface_commit(pShmRectInfo->window_handle);
-//    printf("******%s---%d\n",__FUNCTION__,__LINE__);
-
     //wl_display_flush(display_handle);
     pShmRectInfo->lock.Unlock();
 //    printf("******%s---%d\n",__FUNCTION__,__LINE__);
