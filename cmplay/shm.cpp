@@ -249,7 +249,7 @@ int SHM_AttchWnd(SHM_HANDLE hShmHandle)
         return 0;
     }
     pShmRectInfo->lock.Lock();
-    pShmRectInfo->pWidget->setUpdatesEnabled(false);
+//    pShmRectInfo->pWidget->setUpdatesEnabled(false);
     wl_surface_attach(window_handle, pShmRectInfo->buffer, 0, 0);
     wl_surface_commit(window_handle);
     //wl_display_flush(display_handle);
