@@ -47,8 +47,8 @@ typedef struct _T_CMP_PLAYER_INFO
 {
 	char			acUrl[256];
 	int 			iReconnectFlag;
-	int				iThreadRunFlag;
-    int             iThreadExitFlag;
+    volatile int	iThreadRunFlag;
+    volatile int    iThreadExitFlag;
 	void 			*pUserInfo;
     VDEC_HADNDLE	VHandle;
     pthread_t		hMonitorPlayThread;
@@ -181,8 +181,12 @@ static int RtpSetDataCallBack(int iFrameType, int iStreamType, char *pcFrame, in
         return -1;
     }
 
-    if((NULL == ptCmpPlayer->VHandle) && (STREAM_TYPE_VIDEO == iFrameType))
+    if(NULL == ptCmpPlayer->VHandle)
     {
+        if(STREAM_TYPE_VIDEO != iFrameType)
+        {
+            return iRet;
+        }
         if(E_STREAM_TYPE_H265 == iStreamType)
         {
             ptCmpPlayer->VHandle = VDEC_CreateVideoDecCh(&ptCmpPlayer->ptWndInfo,1920, 1080,
@@ -397,11 +401,13 @@ void* MonitorPlayThread(void *arg)
         }
 
         RHandle = RTSP_Login(acUrl, acUserName, acPassWd);
-        if (RHandle > 0)
+//        printf("ddddssss-RTSP_Login-%x--%s--%d\n", RHandle, __FUNCTION__, __LINE__);
+        if (RHandle != NULL)
         {
             //ptCmpPlayer->RHandle = RHandle;
             RTSP_GetParam(RHandle, E_TYPE_PLAY_RANGE, (void *)&ptCmpPlayer->iPlayRange);
             iRet =  RTSP_OpenStream(RHandle, 0, iRtpProtocol, (void *)RtpSetDataCallBack, (void *)ptCmpPlayer);
+//            printf("ssssss-RTSP_OpenStream-%d--%s--%d\n", iRet, __FUNCTION__, __LINE__);
             if (iRet < 0)
             {
                 if(ptCmpPlayer->iThreadRunFlag == 0)
@@ -661,6 +667,24 @@ CMPPlayer_API int CMP_OpenMediaPreview(CMPHandle hPlay, const char *pcRtspUrl, i
 		return -1;
 	}
 
+    memset(ptCmpPlayer->acUrl,0,sizeof(ptCmpPlayer->acUrl));
+    ptCmpPlayer->ePlayState			= CMP_STATE_IDLE;
+    ptCmpPlayer->iPlaySpeed = 1;
+    ptCmpPlayer->iStreamState = 0;
+    ptCmpPlayer->iGetFrameFlag = 0;
+
+    ptCmpPlayer->iIgnoreFrameNum = 0;
+    ptCmpPlayer->hOpenMediaEvent = NULL;
+    ptCmpPlayer->iOpenMediaState  = CMP_OPEN_MEDIA_FAIL;
+    ptCmpPlayer->hMonitorPlayThread = 0;
+    memset(&ptCmpPlayer->tPrevFrameTs,0,sizeof(timeval));
+    ptCmpPlayer->iRtspHeartCount = 0;
+    ptCmpPlayer->uiPrevFrameTs  = 0;
+    ptCmpPlayer->uiPlayBaseTime  = 0;
+
+    ptCmpPlayer->VHandle = NULL;
+    ptCmpPlayer->iDisplayFlag = 0;
+
 	ptCmpPlayer->iPlayStreamType = PLAY_STREAM_TYPE_PREVIEW;
     ptCmpPlayer->iReconnectFlag = 1;
 	sprintf(ptCmpPlayer->acUrl,  "%s", pcRtspUrl);
@@ -675,7 +699,7 @@ CMPPlayer_API int CMP_OpenMediaPreview(CMPHandle hPlay, const char *pcRtspUrl, i
 #else
     pthread_create(&ptCmpPlayer->hMonitorPlayThread, NULL, MonitorPlayThread, ptCmpPlayer);
 #endif //_WIN32
-    printf("CMP_OpenMediaPreview = %s",ptCmpPlayer->acUrl);
+    printf("CMP_OpenMediaPreview = %s \n",ptCmpPlayer->acUrl);
 
 	return 0;
 }

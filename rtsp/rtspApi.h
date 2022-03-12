@@ -6,7 +6,8 @@ extern "C"{
 #endif /* End of #ifdef __cplusplus */
 
 
-typedef  unsigned long RTSP_HANDLE ;
+//typedef  unsigned long RTSP_HANDLE ;
+typedef void* RTSP_HANDLE ;
 
 typedef enum _E_PLAY_STATE
 {

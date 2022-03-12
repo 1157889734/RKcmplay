@@ -1527,6 +1527,7 @@ int RtspConnect(PT_RTSP_CONN ptRtspConn, const char *pcUri)
         return -1;
     }
 
+#if 0
     ServAddr.sin_family = AF_INET;
     ServAddr.sin_addr.s_addr = inet_addr(ptRtspConn->acServHost);
     ServAddr.sin_port = htons((UINT16)(ptRtspConn->iRtspPort));
@@ -1615,7 +1616,11 @@ int RtspConnect(PT_RTSP_CONN ptRtspConn, const char *pcUri)
            return 0;
        }
        return 0;
-#if 0
+
+#endif
+
+
+#if 1
 
     //set timeout
 #ifdef WIN
