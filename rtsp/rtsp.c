@@ -994,6 +994,9 @@ INT32 RtspSendRequest (PT_RTSP_CONN ptRtspConn)
     int iErrorFlag = 0;
 
 
+
+    pthread_setname_np(pthread_self(),"RtspRecvThread");
+
     RTSP_DEBUG(DEBUG_RTSP_LEVEL, "[RtspRecvThread] enter\n");
 
     if (TCP == ptRtspConn->iRtpTransportProtocol)

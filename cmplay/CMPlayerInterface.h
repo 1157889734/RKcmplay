@@ -64,7 +64,7 @@ extern "C"
   日期:         2015-09-10 
 *************************************************/
 
-CMPPlayer_API CMPHandle CMP_Init(T_WND_INFO *pWndInfo, CMP_VDEC_TYPE eDecType);
+CMPPlayer_API CMPHandle CMP_Init(HWND hWnd, CMP_VDEC_TYPE eDecType);
 
 /*************************************************
   函数功能:     CMP_UnInit
@@ -186,18 +186,6 @@ CMPPlayer_API int CMP_SetPlaySpeed(CMPHandle hPlay, double dSpeed);
 CMPPlayer_API int CMP_SetVolume(CMPHandle hPlay, int nVolume);
 
 /*************************************************
-  函数功能:     CMP_ChangeWnd
-  函数描述:     改变播放窗口 //只针对软解码
-  输入参数:     hPlay：媒体句柄 hWnd 改变后的目标窗口
-  输出参数:     无
-  返回值:       
-  作者：        dingjq
-  日期:         2015-09-10
-  修改:   
-*************************************************/
-CMPPlayer_API int CMP_ChangeWnd(CMPHandle hPlay,const T_WND_INFO *pWndInfo);
-
-/*************************************************
   函数功能:     CMP_GetPlayRange
   函数描述:     获取播放时长
   输入参数:     hPlay：媒体句柄 
@@ -222,8 +210,8 @@ CMPPlayer_API int CMP_GetPlayRange(CMPHandle hPlay);
 CMPPlayer_API int CMP_GetPlayTime(CMPHandle hPlay);
 
 /*************************************************
-  函数功能:     CMP_SetPlayEnable
-  函数描述:     播放使能
+  函数功能:     CMP_SetDisplayEnable
+  函数描述:     显示使能
   输入参数:     hPlay：媒体句柄
   输出参数:     无
   返回值:
@@ -231,7 +219,7 @@ CMPPlayer_API int CMP_GetPlayTime(CMPHandle hPlay);
   日期:         2021-11-24
   修改:
 *************************************************/
-CMPPlayer_API int CMP_SetPlayEnable(CMPHandle hPlay, int enable);
+CMPPlayer_API int CMP_SetDisplayEnable(CMPHandle hPlay, int enable);
 
 /*************************************************
   函数功能:     CMP_SetPlayState

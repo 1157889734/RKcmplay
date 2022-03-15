@@ -150,8 +150,9 @@ int RtcpSendPacket(int iSocket, char *pcRtcpData, int iRtcpLen, struct sockaddr 
             rtcp_packet2->r.sdes.item[0].type = 1;
             rtcp_packet2->r.sdes.item[0].length = 8;
 
-            memset(rtcp_packet2->r.sdes.item[0].data, 0, 10);
-            sprintf(rtcp_packet2->r.sdes.item[0].data, "cftc_nvr");
+            memset(rtcp_packet2->r.sdes.item[0].data, 0, 6);
+            //sprintf(rtcp_packet2->r.sdes.item[0].data, "cftc_nvr");
+            sprintf(rtcp_packet2->r.sdes.item[0].data, "cftc_");
 
             int len= sizeof(rtcp_common_t)*2+sizeof(rtcp_rr_t)+sizeof(unsigned int)*2+sizeof(rtcp_sdes_item_t);
             sendto(ptRtcpConn->iRtcpSocket, acSendBuf, len, 0, &rtcpClientAddr, iAddrLen);

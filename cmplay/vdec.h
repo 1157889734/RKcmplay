@@ -14,8 +14,6 @@ typedef struct _T_WND_INFO
 {
     HWND hWnd;
     void *pRenderHandle;
-    int  nFlag; /* 0:unknow, 1:RGB_888 */
-    int(*decode_func_callback)(unsigned char*data,int w,int h,int flag);
 }T_WND_INFO;
 
 

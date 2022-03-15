@@ -1,6 +1,5 @@
 #include "vdec.h"
 #include "shm.h"
-#include "image_util.h"
 
 #define MAX_DEC_RES_W           1920
 #define MAX_DEC_RES_H           1080
@@ -177,40 +176,8 @@ static int dec_simple(PT_VIDEO_DEC_INFO ptVideoInfo, T_DATA_PACKET *ptPkt)
                     err_info = mpp_frame_get_errinfo(frame) | mpp_frame_get_discard(frame);
                     if (!err_info)
                     {
-                        if((ptVideoInfo->ptWndInfo->nFlag == 1) &&
-                                ptVideoInfo->ptWndInfo->decode_func_callback != NULL)
-                        {
-                            RK_U32 srcWidth  =   mpp_frame_get_width(frame);
-                            RK_U32 srcHeight =   mpp_frame_get_height(frame);
-                            RK_U32 src_h_stride = mpp_frame_get_hor_stride(frame);
-                            RK_U32 src_v_stride = mpp_frame_get_ver_stride(frame);
-                            static unsigned char *pDstBuf = NULL;
-                            if(ptDecInfo->rgadst.rect.width != srcWidth ||
-                                    ptDecInfo->rgadst.rect.height != srcHeight)
-                            {
-                                if(pDstBuf)
-                                {
-                                    delete []pDstBuf;
-                                    pDstBuf = NULL;
-                                }
-                                printf("rgadst.rect.w:%d,h:%d \n", ptDecInfo->rgadst.rect.width, ptDecInfo->rgadst.rect.height);
-
-                                memset(&ptDecInfo->rgasrc, 0, sizeof(rga_info_t));
-                                memset(&ptDecInfo->rgadst, 0, sizeof(rga_info_t));
-                                pDstBuf = new unsigned char[src_h_stride * src_v_stride * 3];
-                                ptDecInfo->rgadst.fd = -1;
-                                ptDecInfo->rgadst.mmuFlag = 1;
-                                ptDecInfo->rgadst.virAddr = pDstBuf;
-                                rga_set_rect(&ptDecInfo->rgadst.rect, 0, 0, srcWidth, srcHeight, src_h_stride, src_v_stride,
-                                             RK_FORMAT_RGB_888);
-                            }
-                            if(pDstBuf)
-                            {
-                                SHM_RkRgaBlit1(frame, ptDecInfo->rgasrc, ptDecInfo->rgadst);
-                                ptVideoInfo->ptWndInfo->decode_func_callback(pDstBuf, srcWidth, srcHeight, 1);
-                            }
-                        }
-                        if(ptVideoInfo->iDisPlayFlag == DISPLAY_START && ptVideoInfo->ptWndInfo->pRenderHandle)
+                        if((ptVideoInfo->iDisPlayFlag == DISPLAY_START) &&
+                                (ptVideoInfo->ptWndInfo->pRenderHandle))
                         {
                             rt = SHM_Display(ptVideoInfo->ptWndInfo->pRenderHandle, frame);
                             if(rt < 0)
@@ -528,6 +495,9 @@ void* DecodecVideoProc(void *argv)
     T_DATA_PACKET tPkt;
     int iRet = 0;
     ptVideoInfo->iVideoExitFlagOver = 1;
+
+
+    pthread_setname_np(pthread_self(), "DecodecThread");
 
     printf("begin DecodecVideoProc \n");
 

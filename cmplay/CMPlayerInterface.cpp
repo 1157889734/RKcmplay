@@ -49,12 +49,10 @@ typedef struct _T_CMP_PLAYER_INFO
 	int 			iReconnectFlag;
     volatile int	iThreadRunFlag;
     volatile int    iThreadExitFlag;
-	void 			*pUserInfo;
     VDEC_HADNDLE	VHandle;
     pthread_t		hMonitorPlayThread;
 	CMPPLAY_STATE   ePlayState;  //播放状态
-	int				iPlaySecs;           //播放了的时间（单位豪秒）
-	int 			iAudioFlag;
+    int				iPlaySecs;           //播放了的时间（单位豪秒）
 	int				iPlayStreamType;     // 0: preview, 1: playback
 	int				iTcpFlag;
 	std::list<SVideoCmdMessage> lstMsg;	//
@@ -73,7 +71,6 @@ typedef struct _T_CMP_PLAYER_INFO
 	CMP_VDEC_TYPE   eDecType;   //软、硬解码或者鱼眼矫正
     T_WND_INFO      ptWndInfo;
     int             iDisplayFlag;
-    void            **pRenderHandle;
 } T_CMP_PLAYER_INFO, *PT_CMP_PLAYER_INFO;
 
 static int				   g_iCMPlayerInitFlag = 0;
@@ -367,6 +364,8 @@ void* MonitorPlayThread(void *arg)
     double dValue = 0;
     int iType = 0;
 
+    pthread_setname_np(pthread_self(), "MonitorThread");
+
     pthread_detach(pthread_self());
 
     if (NULL == arg)
@@ -401,13 +400,11 @@ void* MonitorPlayThread(void *arg)
         }
 
         RHandle = RTSP_Login(acUrl, acUserName, acPassWd);
-//        printf("ddddssss-RTSP_Login-%x--%s--%d\n", RHandle, __FUNCTION__, __LINE__);
         if (RHandle != NULL)
         {
             //ptCmpPlayer->RHandle = RHandle;
             RTSP_GetParam(RHandle, E_TYPE_PLAY_RANGE, (void *)&ptCmpPlayer->iPlayRange);
             iRet =  RTSP_OpenStream(RHandle, 0, iRtpProtocol, (void *)RtpSetDataCallBack, (void *)ptCmpPlayer);
-//            printf("ssssss-RTSP_OpenStream-%d--%s--%d\n", iRet, __FUNCTION__, __LINE__);
             if (iRet < 0)
             {
                 if(ptCmpPlayer->iThreadRunFlag == 0)
@@ -577,9 +574,9 @@ void* MonitorPlayThread(void *arg)
     return NULL;
 }
 
-CMPPlayer_API CMPHandle CMP_Init(T_WND_INFO *pWndInfo, CMP_VDEC_TYPE eDecType)
+CMPPlayer_API CMPHandle CMP_Init(HWND hWnd, CMP_VDEC_TYPE eDecType)
 {
-    if(pWndInfo == NULL)
+    if(hWnd == NULL)
     {
         return NULL;
     }
@@ -621,14 +618,8 @@ CMPPlayer_API CMPHandle CMP_Init(T_WND_INFO *pWndInfo, CMP_VDEC_TYPE eDecType)
     ptCmpPlayer->eDecType = eDecType;
     ptCmpPlayer->iDisplayFlag = 0;
 
-    ptCmpPlayer->ptWndInfo = *pWndInfo;
-    if(!pWndInfo->pRenderHandle && pWndInfo->hWnd)
-    {
-        ptCmpPlayer->ptWndInfo.pRenderHandle = SHM_AddRect((QWidget*)pWndInfo->hWnd);
-        pWndInfo->pRenderHandle = ptCmpPlayer->ptWndInfo.pRenderHandle;
-        ptCmpPlayer->pRenderHandle = &pWndInfo->pRenderHandle;
-    }
-
+    ptCmpPlayer->ptWndInfo.hWnd = hWnd;
+    ptCmpPlayer->ptWndInfo.pRenderHandle = SHM_AddRect((QWidget*)hWnd);
 
     InitMessgeList(ptCmpPlayer);
 
@@ -648,7 +639,6 @@ CMPPlayer_API int CMP_UnInit(CMPHandle hPlay)
     {
         SHM_FreeRect(ptCmpPlayer->ptWndInfo.pRenderHandle);
         ptCmpPlayer->ptWndInfo.pRenderHandle = NULL;
-        *ptCmpPlayer->pRenderHandle = NULL;
     }
 
     InitMessgeList(ptCmpPlayer);
@@ -666,6 +656,12 @@ CMPPlayer_API int CMP_OpenMediaPreview(CMPHandle hPlay, const char *pcRtspUrl, i
         printf("ptCmpPlayer == NULL \n");
 		return -1;
 	}
+
+    if(ptCmpPlayer->hMonitorPlayThread || ptCmpPlayer->VHandle )
+    {
+        CMP_CloseMedia(hPlay);
+        printf("*************ptCmpPlayer->hMonitorPlayThread---ptCmpPlayer->VHandle\n");
+    }
 
     memset(ptCmpPlayer->acUrl,0,sizeof(ptCmpPlayer->acUrl));
     ptCmpPlayer->ePlayState			= CMP_STATE_IDLE;
@@ -694,12 +690,13 @@ CMPPlayer_API int CMP_OpenMediaPreview(CMPHandle hPlay, const char *pcRtspUrl, i
     ptCmpPlayer->iPlaySecs = 0;
     InitMessgeList(ptCmpPlayer);
 	SetPlayState(ptCmpPlayer, CMP_STATE_IDLE);
+
+    printf("CMP_OpenMediaPreview = %s \n",ptCmpPlayer->acUrl);
 #ifdef _WIN32
 	ptCmpPlayer->hPlayThread = CreateThread(NULL, 0, MonitorPlayThread, ptCmpPlayer, 0, NULL);
 #else
     pthread_create(&ptCmpPlayer->hMonitorPlayThread, NULL, MonitorPlayThread, ptCmpPlayer);
 #endif //_WIN32
-    printf("CMP_OpenMediaPreview = %s \n",ptCmpPlayer->acUrl);
 
 	return 0;
 }
@@ -935,18 +932,7 @@ CMPPlayer_API int CMP_SetVolume(CMPHandle hPlay, int nVolume)
 	return 0;
 }
 
-CMPPlayer_API int CMP_ChangeWnd(CMPHandle hPlay,const T_WND_INFO *pWndInfo)
-{
-    PT_CMP_PLAYER_INFO ptCmpPlayer = (PT_CMP_PLAYER_INFO)hPlay;
-    if (NULL == ptCmpPlayer)
-    {
-        return -1;
-    }
-    VDEC_ChangeWindow(ptCmpPlayer->VHandle, pWndInfo);
-	return 1;
-}
-
-CMPPlayer_API int CMP_SetPlayEnable(CMPHandle hPlay, int enable)
+CMPPlayer_API int CMP_SetDisplayEnable(CMPHandle hPlay, int enable)
 {
     PT_CMP_PLAYER_INFO ptCmpPlayer = (PT_CMP_PLAYER_INFO)hPlay;
     if (NULL == ptCmpPlayer)
@@ -1013,7 +999,7 @@ CMPPlayer_API int CMP_GetOpenMediaState(CMPHandle hPlay)
 
     if (NULL == ptCmpPlayer)
     {
-        return NULL;
+        return CMP_OPEN_MEDIA_UNKOWN;
     }
     return ptCmpPlayer->iOpenMediaState;
 }

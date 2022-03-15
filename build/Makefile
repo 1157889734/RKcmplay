@@ -993,8 +993,7 @@ build/obj/vdec.o: ../cmplay/vdec.cpp ../cmplay/vdec.h \
 		../../tools/RK3568/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtCore/qfiledevice.h \
 		../../tools/RK3568/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtGui/qvector2d.h \
 		../../tools/RK3568/aarch64-buildroot-linux-gnu/sysroot/usr/include/qt5/QtGui/qtouchdevice.h \
-		../debugout/debug.h \
-		../image_util.h
+		../debugout/debug.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/obj/vdec.o ../cmplay/vdec.cpp
 
 build/obj/debug.o: ../debugout/debug.c ../debugout/debug.h
