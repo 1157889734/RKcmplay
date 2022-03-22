@@ -29,6 +29,7 @@ typedef struct  T_SHM_RECT_INFO
     int    h;
     int    size;
     int    fd;
+    char   fd_filename[64];
     uchar *addr;
     rga_info_t rgasrc;
     rga_info_t rgadst;
@@ -45,6 +46,7 @@ typedef struct  T_SHM_RECT_INFO
         window_handle = NULL;
         pWidget = NULL;
 
+        memset(fd_filename, 0, sizeof(fd_filename));
         memset(&rgasrc, 0, sizeof(rga_info_t));
         memset(&rgadst, 0, sizeof(rga_info_t));
     }
@@ -106,7 +108,6 @@ static PT_SHM_RECT_INFO create_rect_info(int w, int h)
         close(fd);
         return NULL;
     }
-    unlink(filename);
 
     struct wl_shm_pool *pool = wl_shm_create_pool(s_shm, fd, size);
     struct wl_buffer   *buffer = wl_shm_pool_create_buffer(pool, 0, w, h, stride, WL_SHM_FORMAT_NV12);
@@ -120,6 +121,7 @@ static PT_SHM_RECT_INFO create_rect_info(int w, int h)
     pRectInfo->h = h;
     pRectInfo->fd = fd;
     pRectInfo->size = size;
+    strncpy(pRectInfo->fd_filename, filename, sizeof(pRectInfo->fd_filename));
 
     // rga dst buf set
     pRectInfo->rgasrc.fd = -1;
@@ -213,6 +215,7 @@ int SHM_FreeRect(SHM_HANDLE hShmHandle)
     wl_buffer_destroy(pShmRectInfo->buffer);
     munmap(pShmRectInfo->addr, pShmRectInfo->size);
     close(pShmRectInfo->fd);
+    unlink(pShmRectInfo->fd_filename);
 //    delete pShmRectInfo->pWidget;
     pShmRectInfo->lock.Unlock();
     delete pShmRectInfo;
@@ -307,15 +310,18 @@ int SHM_FillRect(SHM_HANDLE hShmHandle, uint32_t color)
     uint8_t rgba[4];
     memcpy(rgba, &color, 4);
     color_yuv yuv_value;
-    yuv_value.y = MAKE_YUV_601_Y(rgba[0], rgba[1], rgba[2]);
-    yuv_value.u = MAKE_YUV_601_U(rgba[0], rgba[1], rgba[2]);
-    yuv_value.v = MAKE_YUV_601_V(rgba[0], rgba[1], rgba[2]);
+    yuv_value.y = MAKE_YUV_601_Y(rgba[3], rgba[2], rgba[1]);
+    yuv_value.v = MAKE_YUV_601_U(rgba[3], rgba[2], rgba[1]);
+    yuv_value.u = MAKE_YUV_601_V(rgba[3], rgba[2], rgba[1]);
+
+//    printf("rgb:%d,%d,%d, yuv:%x,%x,%x\n", rgba[3], rgba[2], rgba[1],
+//           yuv_value.y,yuv_value.u,yuv_value.v);
 
 
     pShmRectInfo->lock.Lock();
     memset(pShmRectInfo->addr, yuv_value.y, pShmRectInfo->w * pShmRectInfo->h);
     memset(pShmRectInfo->addr + pShmRectInfo->w * pShmRectInfo->h, yuv_value.u, pShmRectInfo->w * pShmRectInfo->h * 0.5);
-    memset(pShmRectInfo->addr + (int)(pShmRectInfo->w * pShmRectInfo->h * 1.5), yuv_value.y, pShmRectInfo->w * pShmRectInfo->h * 0.5);
+    memset(pShmRectInfo->addr + (int)(pShmRectInfo->w * pShmRectInfo->h * 1.5), yuv_value.v, pShmRectInfo->w * pShmRectInfo->h * 0.5);
     wl_surface_attach(pShmRectInfo->window_handle, pShmRectInfo->buffer, 0, 0);
     wl_surface_damage (pShmRectInfo->window_handle, 0, 0,
         pShmRectInfo->w, pShmRectInfo->h);
@@ -424,25 +430,29 @@ int SHM_Display(SHM_HANDLE hPlaneHandle, MppFrame frame)
         return -1;
     }
     int err = -1;
+    pShmRectInfo->lock.Lock();
 	err = SHM_RkRgaBlit(frame, pShmRectInfo);
     if(err < 0)
     {
         printf("rga_blit err \n");
+        pShmRectInfo->lock.Unlock();
         return -1;
     }
     if(pShmRectInfo->window_handle == NULL)
     {
+        pShmRectInfo->lock.Unlock();
         return -1;
     }
     if(pShmRectInfo->pWidget->isVisible() == 0)
     {
+        pShmRectInfo->lock.Unlock();
         return -1;
     }
     if(pShmRectInfo->buffer == NULL)
     {
+        pShmRectInfo->lock.Unlock();
         return -1;
     }
-    pShmRectInfo->lock.Lock();
     //printf("*******pShmRectInfo->window_handle=%d------%d-----%d\n",pShmRectInfo->window_handle,pShmRectInfo->pWidget->isVisible(),__LINE__);
     wl_surface_attach(pShmRectInfo->window_handle, pShmRectInfo->buffer, 0, 0);
     wl_surface_damage (pShmRectInfo->window_handle, 0, 0,

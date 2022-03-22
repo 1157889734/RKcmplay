@@ -47,7 +47,8 @@ SOURCES += \
     rtsp/rtp.c \
     rtsp/rtspApi.c \
     rtsp/rtsp.c \
-    rtsp/rtspComm.c
+    rtsp/rtspComm.c \
+    cmplay/hdware.c
 
 HEADERS += \
     cmplay/CMPlayerInterface.h \
@@ -63,7 +64,8 @@ HEADERS += \
     rtsp/rtp.h \
     rtsp/rtspApi.h \
     rtsp/rtsp.h \
-    rtsp/rtspComm.h
+    rtsp/rtspComm.h \
+    cmplay/hdware.h
 
 
 LIBS += -L$$PWD/lib

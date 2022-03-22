@@ -10,6 +10,7 @@
 #include "rtsp/rtspComm.h"
 #include <stdarg.h>
 #include "shm.h"
+#include "hdware.h"
 
 #ifdef _WIN32
 #else
@@ -131,15 +132,18 @@ static int GetMessage(PT_CMP_PLAYER_INFO ptCmpPlayer, long &lParm1,double &dParm
 	return 1;
 }
 
-static void InitMessgeList(PT_CMP_PLAYER_INFO ptCmpPlayer)
+static int InitMessgeList(PT_CMP_PLAYER_INFO ptCmpPlayer)
 {
+    int iRet = 0;
 	if (NULL == ptCmpPlayer)
 	{
-		return ;
+        return -1;
 	}
 	ptCmpPlayer->stcSecLock.Lock();
 	ptCmpPlayer->lstMsg.clear();
-	ptCmpPlayer->stcSecLock.Unlock();
+    ptCmpPlayer->stcSecLock.Unlock();
+    iRet = WareResult();
+    return iRet;
 }
 
 void SetPlayState(CMPHandle hPlay, CMPPLAY_STATE ePlayState)
@@ -641,14 +645,18 @@ CMPPlayer_API int CMP_UnInit(CMPHandle hPlay)
         ptCmpPlayer->ptWndInfo.pRenderHandle = NULL;
     }
 
+    printf("CMP_UnInit 1111\n");
     InitMessgeList(ptCmpPlayer);
 	delete ptCmpPlayer;
 	ptCmpPlayer=NULL;
+    printf("CMP_UnInit end\n");
+
 	return 0;
 }
 
 CMPPlayer_API int CMP_OpenMediaPreview(CMPHandle hPlay, const char *pcRtspUrl, int iTcpFlag)
 {
+    int iRet = -1;
 	PT_CMP_PLAYER_INFO ptCmpPlayer = (PT_CMP_PLAYER_INFO)hPlay;
 
 	if (NULL == ptCmpPlayer)
@@ -660,7 +668,6 @@ CMPPlayer_API int CMP_OpenMediaPreview(CMPHandle hPlay, const char *pcRtspUrl, i
     if(ptCmpPlayer->hMonitorPlayThread || ptCmpPlayer->VHandle )
     {
         CMP_CloseMedia(hPlay);
-        printf("*************ptCmpPlayer->hMonitorPlayThread---ptCmpPlayer->VHandle\n");
     }
 
     memset(ptCmpPlayer->acUrl,0,sizeof(ptCmpPlayer->acUrl));
@@ -688,8 +695,12 @@ CMPPlayer_API int CMP_OpenMediaPreview(CMPHandle hPlay, const char *pcRtspUrl, i
     ptCmpPlayer->iThreadExitFlag = 0;
 	ptCmpPlayer->iTcpFlag = iTcpFlag;
     ptCmpPlayer->iPlaySecs = 0;
-    InitMessgeList(ptCmpPlayer);
 	SetPlayState(ptCmpPlayer, CMP_STATE_IDLE);
+    iRet = InitMessgeList(ptCmpPlayer);
+    if(iRet != 0)
+    {
+        return -2;
+    }
 
     printf("CMP_OpenMediaPreview = %s \n",ptCmpPlayer->acUrl);
 #ifdef _WIN32
@@ -704,12 +715,36 @@ CMPPlayer_API int CMP_OpenMediaPreview(CMPHandle hPlay, const char *pcRtspUrl, i
 
 CMPPlayer_API int CMP_OpenMediaFile(CMPHandle hPlay, const char *pcRtspFile, int iTcpFlag)
 {
+    int iRet = -1;
 	PT_CMP_PLAYER_INFO ptCmpPlayer = (PT_CMP_PLAYER_INFO)hPlay;
 
 	if (NULL == ptCmpPlayer)
 	{
 		return -1;
 	}
+
+    if(ptCmpPlayer->hMonitorPlayThread || ptCmpPlayer->VHandle )
+    {
+        CMP_CloseMedia(hPlay);
+    }
+    memset(ptCmpPlayer->acUrl,0,sizeof(ptCmpPlayer->acUrl));
+    ptCmpPlayer->ePlayState			= CMP_STATE_IDLE;
+    ptCmpPlayer->iPlaySpeed = 1;
+    ptCmpPlayer->iStreamState = 0;
+    ptCmpPlayer->iGetFrameFlag = 0;
+
+    ptCmpPlayer->iIgnoreFrameNum = 0;
+    ptCmpPlayer->hOpenMediaEvent = NULL;
+    ptCmpPlayer->iOpenMediaState  = CMP_OPEN_MEDIA_FAIL;
+    ptCmpPlayer->hMonitorPlayThread = 0;
+    memset(&ptCmpPlayer->tPrevFrameTs,0,sizeof(timeval));
+    ptCmpPlayer->iRtspHeartCount = 0;
+    ptCmpPlayer->uiPrevFrameTs  = 0;
+    ptCmpPlayer->uiPlayBaseTime  = 0;
+
+    ptCmpPlayer->VHandle = NULL;
+    ptCmpPlayer->iDisplayFlag = 0;
+
 
 	ptCmpPlayer->iPlayStreamType = PLAY_STREAM_TYPE_PLAYBACK;
 	ptCmpPlayer->iReconnectFlag = 0;
@@ -719,8 +754,13 @@ CMPPlayer_API int CMP_OpenMediaFile(CMPHandle hPlay, const char *pcRtspFile, int
 	ptCmpPlayer->iTcpFlag = iTcpFlag;
     ptCmpPlayer->iOpenMediaState = CMP_OPEN_MEDIA_UNKOWN;
     ptCmpPlayer->iPlaySecs = 0;
-    InitMessgeList(ptCmpPlayer);
     SetPlayState(ptCmpPlayer, CMP_STATE_IDLE);
+
+    iRet = InitMessgeList(ptCmpPlayer);
+    if(iRet != 0)
+    {
+        return -2;
+    }
 
 #ifdef _WIN32
 	ptCmpPlayer->hOpenMediaEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
